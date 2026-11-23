@@ -27,7 +27,7 @@ canvas#boxCanvas{cursor:grab}canvas#boxCanvas:active{cursor:grabbing}
 </style>
 <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 </head><body><main>
-<section id="login" class="card hide"><h2>Sign in</h2>
+<section id="login" class="card"><h2>Sign in</h2>
  <form id="lf"><input id="em" type="email" placeholder="email" autocomplete="username" required><input id="pw" type="password" placeholder="password" autocomplete="current-password" required><button class="go" style="width:100%">Sign in</button></form></section>
 <div id="app" class="hide">
 <header><span id="dot" class="dot"></span><h1>Le GPT</h1><span id="age" class="pill">-</span><span id="hdrPc2Stats" class="pill">PC #2: -</span><span class="sp"></span><button id="out">Sign out</button></header>
@@ -96,7 +96,7 @@ const CFG = { url: "https://laektajfojnzcnchddiy.supabase.co", key: "eyJhbGciOiJ
 const $ = id => document.getElementById(id);
 const roleOf = k => { try { return JSON.parse(atob(k.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).role; } catch (e) { return ""; } };
 let S = JSON.parse(sessionStorage.getItem("legpt") || "null"), busy = false;
-const say = (t, id) => { $(id || "err").textContent = t || ""; };
+const say = (t, id) => { const el = $(id || "err"); if (el) el.textContent = t || ""; };
 
 let latestBoxData = {};
 let pc2State = { configured: false, ip: "", port: 5056, name: "PC #2", online: false, error: "", usedGb: 4.0, freeGb: 12.0 };
@@ -396,15 +396,19 @@ let threeReady = false, scene, camera, renderer;
 let lmGroup, pcGroup, pc2UsedGroup, pc2FreeGroup, agentMesh;
 let responseDoorGroup, responsePulseMesh, bridgeDoorGroup;
 let portNodesGroup, lmUsableGroup, packets3dGroup, lmUsableColliders = [];
-let camTarget = new THREE.Vector3(1.5, 0.8, 1.0), yaw = -0.35, pitch = 0.56, radius = 28;
+let camTarget = null, yaw = -0.35, pitch = 0.56, radius = 28;
 
 function updateCameraPos() {
-  if (!camera) return;
+  if (!camera || !camTarget) return;
   const horiz = radius * Math.cos(pitch);
   camera.position.set(camTarget.x + horiz * Math.sin(yaw), Math.max(1.8, camTarget.y + radius * Math.sin(pitch)), camTarget.z + horiz * Math.cos(yaw));
   camera.lookAt(camTarget);
 }
-function resetCamera() { camTarget.set(1.5, 0.8, 1.0); yaw = -0.35; pitch = 0.56; radius = 28; updateCameraPos(); }
+function resetCamera() {
+  if (!window.THREE) return;
+  if (!camTarget) camTarget = new THREE.Vector3();
+  camTarget.set(1.5, 0.8, 1.0); yaw = -0.35; pitch = 0.56; radius = 28; updateCameraPos();
+}
 
 function createOutlineBox(width, height, depth, colorHex) {
   const group = new THREE.Group();
@@ -492,41 +496,62 @@ function apply3DScales() {
   }
 }
 
+function switchTo2D() {
+  is3DMode = false;
+  $("mode2dBtn").classList.add("active"); $("mode3dBtn").classList.remove("active");
+  threeHost.style.display = "none"; canvas.style.display = "block";
+  cam2d.zoom = 1.0; cam2d.x = Math.max(0, layout2d.lm.x + layout2d.lm.w * 0.5 - canvas.width * 0.48);
+  cam2d.y = Math.max(0, layout2d.lm.y + layout2d.lm.h * 0.5 - canvas.height * 0.36);
+  clampCam2d();
+  $("viewHint").textContent = "2D Space: Drag to scroll/pan • Wheel to zoom • WASD/Arrows to pan";
+}
+
 function initThree() {
-  if (threeReady || !window.THREE) return;
-  scene = new THREE.Scene(); scene.background = new THREE.Color(0x04070e);
-  const w = threeHost.clientWidth || 960, h = threeHost.clientHeight || 550;
-  camera = new THREE.PerspectiveCamera(48, w / h, 0.1, 200);
-  renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(w, h);
-  threeHost.innerHTML = ""; threeHost.appendChild(renderer.domElement);
-  scene.add(new THREE.GridHelper(60, 60, 0x243656, 0x0d1628));
-  packets3dGroup = new THREE.Group(); scene.add(packets3dGroup);
-  agentMesh = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.SphereGeometry(0.46, 16, 16)), new THREE.LineBasicMaterial({ color: 0xfbbf24 }));
-  agentMesh.position.set(-2.8, 0.55, -1.8); scene.add(agentMesh);
+  if (threeReady) return;
+  if (!window.THREE) {
+    switchTo2D();
+    $("zoomReadout").textContent = "2D Mode (3D unavailable)";
+    return;
+  }
+  try {
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0x04070e);
+    const w = threeHost.clientWidth || 960, h = threeHost.clientHeight || 550;
+    camera = new THREE.PerspectiveCamera(48, w / h, 0.1, 200);
+    renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(w, h);
+    threeHost.innerHTML = ""; threeHost.appendChild(renderer.domElement);
+    scene.add(new THREE.GridHelper(60, 60, 0x243656, 0x0d1628));
+    packets3dGroup = new THREE.Group(); scene.add(packets3dGroup);
+    agentMesh = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.SphereGeometry(0.46, 16, 16)), new THREE.LineBasicMaterial({ color: 0xfbbf24 }));
+    agentMesh.position.set(-2.8, 0.55, -1.8); scene.add(agentMesh);
 
-  apply3DScales(); resetCamera();
+    threeReady = true;
+    apply3DScales(); resetCamera();
 
-  let dragging = false, button = 0, lx = 0, ly = 0;
-  renderer.domElement.addEventListener("contextmenu", e => e.preventDefault());
-  renderer.domElement.addEventListener("pointerdown", e => { dragging = true; button = e.button; lx = e.clientX; ly = e.clientY; });
-  window.addEventListener("pointerup", () => { dragging = false; });
-  window.addEventListener("pointermove", e => {
-    if (!dragging || !is3DMode) return;
-    const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
-    if (button === 2 || e.shiftKey) { camTarget.x -= dx * 0.025; camTarget.z += dy * 0.025; }
-    else { yaw -= dx * 0.0075; pitch = Math.max(0.14, Math.min(1.32, pitch + dy * 0.0075)); }
-    updateCameraPos();
-  });
-  renderer.domElement.addEventListener("wheel", e => {
-    if (!is3DMode) return; e.preventDefault();
-    radius = Math.max(7, Math.min(56, radius + (e.deltaY > 0 ? 1.8 : -1.8))); updateCameraPos();
-  }, { passive: false });
-  window.addEventListener("resize", () => {
-    if (!threeReady || !renderer || !camera) return;
-    const nw = threeHost.clientWidth || 960, nh = threeHost.clientHeight || 550;
-    camera.aspect = nw / nh; camera.updateProjectionMatrix(); renderer.setSize(nw, nh);
-  });
-  threeReady = true;
+    let dragging = false, button = 0, lx = 0, ly = 0;
+    renderer.domElement.addEventListener("contextmenu", e => e.preventDefault());
+    renderer.domElement.addEventListener("pointerdown", e => { dragging = true; button = e.button; lx = e.clientX; ly = e.clientY; });
+    window.addEventListener("pointerup", () => { dragging = false; });
+    window.addEventListener("pointermove", e => {
+      if (!dragging || !is3DMode) return;
+      const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+      if (button === 2 || e.shiftKey) { camTarget.x -= dx * 0.025; camTarget.z += dy * 0.025; }
+      else { yaw -= dx * 0.0075; pitch = Math.max(0.14, Math.min(1.32, pitch + dy * 0.0075)); }
+      updateCameraPos();
+    });
+    renderer.domElement.addEventListener("wheel", e => {
+      if (!is3DMode) return; e.preventDefault();
+      radius = Math.max(7, Math.min(56, radius + (e.deltaY > 0 ? 1.8 : -1.8))); updateCameraPos();
+    }, { passive: false });
+    window.addEventListener("resize", () => {
+      if (!threeReady || !renderer || !camera) return;
+      const nw = threeHost.clientWidth || 960, nh = threeHost.clientHeight || 550;
+      camera.aspect = nw / nh; camera.updateProjectionMatrix(); renderer.setSize(nw, nh);
+    });
+  } catch (e) {
+    threeReady = false;
+    switchTo2D();
+    $("zoomReadout").textContent = "2D Mode (WebGL unavailable)";
+  }
 }
 
 function updateThree(dt, now) {
@@ -640,8 +665,7 @@ function render(row) {
   const st = $("st"); st.textContent = "";
   for (const [k, label] of FIELDS) { if (d[k] === undefined || d[k] === "") continue; const a = document.createElement("dt"), b = document.createElement("dd"); a.textContent = label; b.textContent = String(d[k]).slice(0, 1500); st.append(a, b); }
   if (d.cpu !== undefined) { const a = document.createElement("dt"), b = document.createElement("dd"); a.textContent = "CPU / GPU / RAM"; b.textContent = [d.cpu, d.gpu, d.ram].map(x => (x === undefined || x === "" ? "-" : x + "%")).join("  /  "); st.append(a, b); }
-  $("log").textContent = (d.log || []).slice(-12).join("
-");
+  $("log").textContent = (d.log || []).slice(-12).join("\n");
   $("apr").classList.toggle("ask", /approv|wait|confirm/i.test(String(d.state || "") + " " + String(d.say || "")));
   if (d.box && d.box.pc2) renderPc2(d.box.pc2);
   computeVisualMetrics(d);
@@ -702,18 +726,13 @@ $("mode3dBtn").onclick = () => {
   is3DMode = true;
   $("mode3dBtn").classList.add("active"); $("mode2dBtn").classList.remove("active");
   threeHost.style.display = "block"; canvas.style.display = "none";
-  initThree(); $("zoomReadout").textContent = "3D Ready";
-  $("viewHint").textContent = "3D Sim: Drag to orbit • Wheel to zoom • Right-drag or WASD to pan";
+  initThree();
+  if (threeReady) {
+    $("zoomReadout").textContent = "3D Ready";
+    $("viewHint").textContent = "3D Sim: Drag to orbit • Wheel to zoom • Right-drag or WASD to pan";
+  }
 };
-$("mode2dBtn").onclick = () => {
-  is3DMode = false;
-  $("mode2dBtn").classList.add("active"); $("mode3dBtn").classList.remove("active");
-  threeHost.style.display = "none"; canvas.style.display = "block";
-  cam2d.zoom = 1.0; cam2d.x = Math.max(0, layout2d.lm.x + layout2d.lm.w * 0.5 - canvas.width * 0.48);
-  cam2d.y = Math.max(0, layout2d.lm.y + layout2d.lm.h * 0.5 - canvas.height * 0.36);
-  clampCam2d();
-  $("viewHint").textContent = "2D Space: Drag to scroll/pan • Wheel to zoom • WASD/Arrows to pan";
-};
+$("mode2dBtn").onclick = switchTo2D;
 $("resetCamBtn").onclick = () => {
   if (is3DMode) resetCamera();
   else { cam2d.zoom = 1.0; cam2d.x = Math.max(0, layout2d.lm.x + layout2d.lm.w * 0.5 - canvas.width * 0.48); cam2d.y = Math.max(0, layout2d.lm.y + layout2d.lm.h * 0.5 - canvas.height * 0.36); clampCam2d(); }
@@ -741,8 +760,8 @@ function frame(now) {
   const dt = Math.min(0.05, (now - lastNow) / 1000);
   lastNow = now;
   updatePackets(dt);
-  if (is3DMode) updateThree(dt, now);
-  else { update2d(dt); draw2D(); }
+  if (is3DMode && threeReady) updateThree(dt, now);
+  else if (!is3DMode) { update2d(dt); draw2D(); }
   requestAnimationFrame(frame);
 }
 
