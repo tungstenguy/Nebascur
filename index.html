@@ -132,11 +132,12 @@ let metrics = {
 };
 
 function computeVisualMetrics(d) {
-  const ram = (d && d.ram) || {};
+  const box = (d && d.box) || {};
+  const ram = box.ram || (typeof (d && d.ram) === "object" ? d.ram : {}) || {};
   const totalMb = Math.max(1024, Number(ram.total) || 16384);
   const rawUsedMb = Math.max(0, Number(ram.used) || 4096);
   const lmEngineMb = Math.max(0, Number(ram.lm) || 0);
-  const apps = Array.isArray(d && d.apps) ? d.apps : [];
+  const apps = Array.isArray(box.apps) ? box.apps : (Array.isArray(d && d.apps) ? d.apps : []);
 
   const lmUsableItems = [];
   let lmUsableTotalMb = 0;
@@ -320,7 +321,8 @@ function draw2D() {
   ctx.fillStyle = "#ddd6fe"; ctx.font = "700 13px system-ui, sans-serif";
   ctx.fillText(`LM BOX • ${metrics.lmBoxGb.toFixed(2)} GB`, lm.x + 16, lm.y + 26);
 
-  const ports = (latestBoxData.ports && latestBoxData.ports.length) ? latestBoxData.ports.slice(0, 6) : [{ label: "Link Port", site: "web" }];
+  const boxPorts = (latestBoxData.box && latestBoxData.box.ports) || latestBoxData.ports;
+  const ports = (Array.isArray(boxPorts) && boxPorts.length) ? boxPorts.slice(0, 6) : [{ label: "Link Port", site: "web" }];
   ports.forEach((p, i) => {
     const py = lm.y + 52 + i * 38;
     if (py < lm.y + lm.h - 28) {
@@ -425,7 +427,8 @@ function apply3DScales() {
   lmUsableGroup = new THREE.Group(); lmGroup.add(lmUsableGroup);
   scene.add(lmGroup);
 
-  const rawPorts = Array.isArray(latestBoxData.ports) && latestBoxData.ports.length ? latestBoxData.ports.slice(0, 8) : [{ site: "web.port", bad: false, active: false }];
+  const boxPorts = (latestBoxData.box && latestBoxData.box.ports) || latestBoxData.ports;
+  const rawPorts = Array.isArray(boxPorts) && boxPorts.length ? boxPorts.slice(0, 8) : [{ site: "web.port", bad: false, active: false }];
   rawPorts.forEach((p, idx) => {
     const zPos = rawPorts.length === 1 ? 0 : ((idx / (rawPorts.length - 1)) - 0.5) * (lmD * 0.72);
     const col = p.bad ? 0xf87171 : (p.active ? 0x38bdf8 : 0x34d399);
@@ -598,7 +601,16 @@ async function pc2Api(payload) {
 
 function renderPc2(pc2, extraReply) {
   if (!pc2) return;
-  pc2State = { ...pc2State, ...pc2 };
+  const ram = pc2.ram || {};
+  const nextState = { ...pc2State, ...pc2 };
+  if (typeof ram.used === "number") {
+    nextState.usedGb = ram.used / 1024;
+  }
+  if (typeof ram.free === "number") {
+    nextState.freeGb = ram.free / 1024;
+  }
+  pc2State = nextState;
+
   if (pc2.ip && !$("pc2_ip").value) $("pc2_ip").value = pc2.ip;
   if (pc2.port && !$("pc2_port").value) $("pc2_port").value = String(pc2.port);
   if (pc2.name && !$("pc2_name").value) $("pc2_name").value = pc2.name;
@@ -628,7 +640,8 @@ function render(row) {
   const st = $("st"); st.textContent = "";
   for (const [k, label] of FIELDS) { if (d[k] === undefined || d[k] === "") continue; const a = document.createElement("dt"), b = document.createElement("dd"); a.textContent = label; b.textContent = String(d[k]).slice(0, 1500); st.append(a, b); }
   if (d.cpu !== undefined) { const a = document.createElement("dt"), b = document.createElement("dd"); a.textContent = "CPU / GPU / RAM"; b.textContent = [d.cpu, d.gpu, d.ram].map(x => (x === undefined || x === "" ? "-" : x + "%")).join("  /  "); st.append(a, b); }
-  $("log").textContent = (d.log || []).slice(-12).join("\n");
+  $("log").textContent = (d.log || []).slice(-12).join("
+");
   $("apr").classList.toggle("ask", /approv|wait|confirm/i.test(String(d.state || "") + " " + String(d.say || "")));
   if (d.box && d.box.pc2) renderPc2(d.box.pc2);
   computeVisualMetrics(d);
