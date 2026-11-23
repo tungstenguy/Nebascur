@@ -1,26 +1,36 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://*.supabase.co http://localhost:5055 http://127.0.0.1:5055; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://unpkg.com; style-src 'unsafe-inline'; connect-src https://*.supabase.co http://localhost:5055 http://127.0.0.1:5055; base-uri 'none'; form-action 'none'">
 <title>Le GPT control</title>
 <style>
-:root{--bg:#0b0f17;--card:#121826;--line:#26314a;--txt:#d8e0f0;--dim:#7c89a8;--acc:#5eead4;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171}
+:root{--bg:#0b0f17;--card:#121826;--line:#26314a;--txt:#d8e0f0;--dim:#7c89a8;--acc:#5eead4;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--bridge:#f59e0b}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px system-ui,Segoe UI,sans-serif}
-main{max-width:760px;margin:0 auto;padding:14px}h1{font-size:18px;margin:0}header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+main{max-width:1120px;margin:0 auto;padding:14px}h1{font-size:18px;margin:0}header{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--bad)}.dot.on{background:var(--ok)}.sp{flex:1}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
 .card h2{margin:0 0 8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
 input,select,button{font:inherit;color:var(--txt);background:#0d1322;border:1px solid var(--line);border-radius:8px;padding:9px 10px}
-input,select{width:100%;margin-bottom:8px}button{cursor:pointer}button:hover{border-color:var(--acc)}
+input,select{width:100%;margin-bottom:8px}button{cursor:pointer}button:hover,button.active{border-color:var(--acc);color:#fff}
 .row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1;min-width:70px}.go{background:#12351f;border-color:#256b3d}.stop{background:#3a1717;border-color:#7a2b2b}.yes{background:#12351f}.no{background:#3a1717}
-.ask{outline:2px solid var(--warn)}dl{margin:0;display:grid;grid-template-columns:110px 1fr;gap:6px 10px}dt{color:var(--dim)}dd{margin:0;white-space:pre-wrap;word-break:break-word}
-pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px ui-monospace,monospace;color:#9fb0d8}.err{color:var(--bad);min-height:1.2em;margin-top:6px}.hide{display:none}.pill{padding:2px 10px;border-radius:99px;background:#1c2640}
+.ask{outline:2px solid var(--warn)}dl{margin:0;display:grid;grid-template-columns:120px 1fr;gap:6px 10px}dt{color:var(--dim)}dd{margin:0;white-space:pre-wrap;word-break:break-word}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px ui-monospace,monospace;color:#9fb0d8}.err{color:var(--bad);min-height:1.2em;margin-top:6px}.hide{display:none}.pill{padding:2px 10px;border-radius:99px;background:#1c2640;font-size:13px}
 .sub{color:var(--dim);font-size:13px;margin:4px 0 0;white-space:pre-wrap;word-break:break-word}
-</style></head><body><main>
+.stage-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin-bottom:8px}
+.legend{display:flex;flex-wrap:wrap;gap:10px}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.viewport-wrap{position:relative;width:100%;background:#04070e;border:1px solid var(--line);border-radius:10px;overflow:hidden;aspect-ratio:1360/780}
+canvas#boxCanvas,#threeHost{display:block;width:100%;height:100%}
+canvas#boxCanvas{cursor:grab}canvas#boxCanvas:active{cursor:grabbing}
+#threeHost{position:relative}
+.demo-badge{position:absolute;top:10px;left:10px;pointer-events:none;background:rgba(10,17,31,.86);border:1px solid rgba(167,139,250,.45);color:#e2e8f0;padding:7px 11px;border-radius:8px;font-size:12px;line-height:1.45}
+.hint-bar{font-size:12px;color:var(--dim);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:8px}
+</style>
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+</head><body><main>
 <section id="login" class="card hide"><h2>Sign in</h2>
  <form id="lf"><input id="em" type="email" placeholder="email" autocomplete="username" required><input id="pw" type="password" placeholder="password" autocomplete="current-password" required><button class="go" style="width:100%">Sign in</button></form></section>
 <div id="app" class="hide">
-<header><span id="dot" class="dot"></span><h1>Le GPT</h1><span id="age" class="pill">-</span><span class="sp"></span><button id="out">Sign out</button></header>
+<header><span id="dot" class="dot"></span><h1>Le GPT</h1><span id="age" class="pill">-</span><span id="hdrPc2Stats" class="pill">PC #2: -</span><span class="sp"></span><button id="out">Sign out</button></header>
 <section class="card"><h2>Task</h2><input id="url" placeholder="site URL, saved link #N, or desktop"><input id="goal" placeholder="goal">
  <select id="mode"><option value="RISKY">Ask only on risky steps</option><option value="ALL">Ask on every step</option></select>
  <div class="row"><button class="go" data-cmd="GO">GO</button><button data-cmd="PAUSE">PAUSE</button><button data-cmd="RESUME">RESUME</button><button class="stop" data-cmd="STOP">STOP</button></div></section>
@@ -43,6 +53,38 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px ui-monospace,m
  </div>
  <div id="pc2_out" class="sub">No PC #2 status yet.</div>
 </section>
+<section class="card">
+ <h2>2D & 3D Visuals (Shared GB Scale)</h2>
+ <div class="stage-top">
+  <div class="legend">
+   <span><i style="background:#a78bfa;"></i>LM Box</span>
+   <span><i style="background:#2dd4bf;"></i>LM-Usable Items</span>
+   <span><i style="background:#34d399;"></i>Link Ports</span>
+   <span><i style="background:#38bdf8;"></i>Response Door</span>
+   <span><i style="background:#60a5fa;"></i>PC #1 Used RAM</span>
+   <span><i style="background:#f59e0b;"></i>PC #2 Used & Bridge</span>
+   <span><i style="background:#38bdf8;"></i>PC #2 Free RAM</span>
+  </div>
+  <div class="row" style="flex:0 0 auto">
+   <button id="mode2dBtn">2D Space</button>
+   <button id="mode3dBtn" class="active">3D Sim</button>
+   <button id="resetCamBtn">Reset View</button>
+  </div>
+ </div>
+ <div class="viewport-wrap">
+  <div id="threeHost"></div>
+  <canvas id="boxCanvas" width="1360" height="780" style="display:none;"></canvas>
+  <div class="demo-badge">
+   <div><strong>LM Box:</strong> <span id="ovLm">0.00 GB</span> • <strong>PC #1 Used:</strong> <span id="ovPc">0.00 GB</span></div>
+   <div><strong>PC #2 Used:</strong> <span id="ovPc2Used">4.0 GB</span> • <strong>PC #2 Free:</strong> <span id="ovPc2Free">12.0 GB</span></div>
+   <div><strong>LM-Usable Items:</strong> <span id="ovLmFiles">0</span> • <strong>PC #2:</strong> <span id="ovPc2">PC #2</span></div>
+  </div>
+ </div>
+ <div class="hint-bar">
+  <span id="viewHint">3D Sim: Drag to orbit • Wheel to zoom • Right-drag or WASD to pan</span>
+  <span id="zoomReadout">3D Ready</span>
+ </div>
+</section>
 <section class="card"><h2>Status</h2><dl id="st"></dl></section>
 <section class="card"><h2>Log</h2><pre id="log"></pre></section>
 <div class="err" id="err"></div></div>
@@ -56,6 +98,474 @@ const roleOf = k => { try { return JSON.parse(atob(k.split(".")[1].replace(/-/g,
 let S = JSON.parse(sessionStorage.getItem("legpt") || "null"), busy = false;
 const say = (t, id) => { $(id || "err").textContent = t || ""; };
 
+let latestBoxData = {};
+let pc2State = { configured: false, ip: "", port: 5056, name: "PC #2", online: false, error: "", usedGb: 4.0, freeGb: 12.0 };
+const bridgePackets = [];
+const keysDown = new Set();
+let is3DMode = true;
+
+function gbToBoxScale(gb) {
+  const safeGb = Math.max(0.25, Number(gb) || 0.25);
+  return Math.max(0.45, Math.min(1.85, 0.48 + Math.sqrt(safeGb) * 0.26));
+}
+
+function spawnBridgePacket(dir) {
+  bridgePackets.push({ dir, progress: 0 });
+}
+
+function updatePackets(dt) {
+  for (let i = bridgePackets.length - 1; i >= 0; i--) {
+    bridgePackets[i].progress += dt * 0.85;
+    if (bridgePackets[i].progress >= 1) bridgePackets.splice(i, 1);
+  }
+}
+
+let metrics = {
+  totalGb: 16.0,
+  pcOnlyUsedGb: 5.5,
+  lmBoxGb: 10.5,
+  lmScale: 1.25,
+  pcScale: 0.90,
+  pc2UsedScale: gbToBoxScale(4.0),
+  pc2FreeScale: gbToBoxScale(12.0),
+  lmUsableItems: []
+};
+
+function computeVisualMetrics(d) {
+  const ram = (d && d.ram) || {};
+  const totalMb = Math.max(1024, Number(ram.total) || 16384);
+  const rawUsedMb = Math.max(0, Number(ram.used) || 4096);
+  const lmEngineMb = Math.max(0, Number(ram.lm) || 0);
+  const apps = Array.isArray(d && d.apps) ? d.apps : [];
+
+  const lmUsableItems = [];
+  let lmUsableTotalMb = 0;
+  for (const app of apps) {
+    const mb = Math.max(0, Number(app.mb) || 0);
+    if (mb > 0 && lmUsableItems.length < 8) {
+      lmUsableItems.push({ name: String(app.name || "item"), mb });
+      lmUsableTotalMb += mb;
+    }
+  }
+  const agentMb = Math.max(0, Number(ram.agent || 0));
+  if (agentMb > 1 && lmUsableItems.length < 8) {
+    lmUsableItems.unshift({ name: "Le GPT runtime", mb: agentMb });
+    lmUsableTotalMb += agentMb;
+  }
+
+  const pcOnlyUsedMb = Math.max(256, rawUsedMb - lmUsableTotalMb - lmEngineMb);
+  const totalGb = totalMb / 1024;
+  const pcOnlyUsedGb = Math.min(totalGb, pcOnlyUsedMb / 1024);
+  const lmBoxGb = Math.max(0.5, totalGb - pcOnlyUsedGb);
+  const lmBoxMb = lmBoxGb * 1024;
+
+  const itemsWithShare = lmUsableItems.map(it => ({
+    ...it,
+    share: Math.max(0.03, Math.min(0.45, it.mb / Math.max(512, lmBoxMb)))
+  }));
+
+  const usedGb2 = Math.max(0.5, Number(pc2State.usedGb) || 4.0);
+  const freeGb2 = Math.max(0.5, Number(pc2State.freeGb) || 12.0);
+
+  metrics = {
+    totalGb,
+    pcOnlyUsedGb,
+    lmBoxGb,
+    lmScale: Math.max(0.80, Math.min(1.95, 0.65 + Math.sqrt(lmBoxGb) * 0.28)),
+    pcScale: gbToBoxScale(pcOnlyUsedGb),
+    pc2UsedScale: gbToBoxScale(usedGb2),
+    pc2FreeScale: gbToBoxScale(freeGb2),
+    lmUsableItems: itemsWithShare
+  };
+
+  $("ovLm").textContent = `${lmBoxGb.toFixed(2)} GB`;
+  $("ovPc").textContent = `${pcOnlyUsedGb.toFixed(2)} GB`;
+  $("ovPc2Used").textContent = `${usedGb2.toFixed(1)} GB`;
+  $("ovPc2Free").textContent = `${freeGb2.toFixed(1)} GB`;
+  $("ovLmFiles").textContent = String(itemsWithShare.length);
+  $("ovPc2").textContent = `${pc2State.name || "PC #2"}${pc2State.ip ? " (" + pc2State.ip + ")" : ""}`;
+  $("hdrPc2Stats").textContent = pc2State.configured
+    ? `PC #2: ${pc2State.online ? "ONLINE" : "OFFLINE"} • ${usedGb2.toFixed(1)}G/${freeGb2.toFixed(1)}G`
+    : `PC #2: ${usedGb2.toFixed(1)}G/${freeGb2.toFixed(1)}G`;
+}
+
+// ---- 2D Canvas ----
+const canvas = $("boxCanvas");
+const ctx = canvas.getContext("2d");
+const threeHost = $("threeHost");
+const WORLD_W = 2400, WORLD_H = 1600;
+const cam2d = { x: 420, y: 260, zoom: 1.0, dragging: false, lastX: 0, lastY: 0 };
+let layout2d = {
+  lm: { x: 760, y: 230, w: 500, h: 350 },
+  pc1: { x: 1450, y: 310, w: 250, h: 190 },
+  pc2Used: { x: 760, y: 920, w: 230, h: 175 },
+  pc2Free: { x: 1030, y: 890, w: 360, h: 240 },
+  bridgeDoor: { x: 960, y: 562, w: 104, h: 18 },
+  responseDoor: { x: 1242, y: 380, w: 18, h: 64 },
+  usableBoxes: []
+};
+const agent2d = { x: 980, y: 400, r: 14, tx: 1040, ty: 380, timer: 0, trail: [] };
+
+function recomputeLayout2d() {
+  const lmW = Math.round(460 * metrics.lmScale);
+  const lmH = Math.round(340 * metrics.lmScale);
+  const lmX = 760, lmY = 230;
+  const pc1W = Math.round(250 * metrics.pcScale);
+  const pc1H = Math.round(190 * metrics.pcScale);
+  const pc1X = lmX + lmW + 175;
+  const pc1Y = lmY + Math.round((lmH - pc1H) * 0.5);
+
+  const pc2UsedW = Math.round(250 * metrics.pc2UsedScale);
+  const pc2UsedH = Math.round(190 * metrics.pc2UsedScale);
+  const pc2FreeW = Math.round(380 * metrics.pc2FreeScale);
+  const pc2FreeH = Math.round(250 * metrics.pc2FreeScale);
+
+  const bridgeY = lmY + lmH + 165;
+  const clusterTotalW = pc2UsedW + 36 + pc2FreeW;
+  const clusterStartX = lmX + lmW * 0.5 - clusterTotalW * 0.5;
+  const pc2UsedX = clusterStartX;
+  const pc2UsedY = bridgeY + Math.round((pc2FreeH - pc2UsedH) * 0.5);
+  const pc2FreeX = pc2UsedX + pc2UsedW + 36;
+  const pc2FreeY = bridgeY;
+
+  const wallT = 18;
+  const usableBoxes = [];
+  metrics.lmUsableItems.forEach((it, idx) => {
+    const bw = Math.max(96, Math.min(lmW * 0.32, 82 + Math.sqrt(it.share) * 240));
+    const bh = Math.max(40, Math.min(lmH * 0.22, 36 + Math.sqrt(it.share) * 120));
+    const bx = lmX + wallT + 20 + (idx % 2) * (lmW * 0.44);
+    const by = lmY + wallT + 38 + Math.floor(idx / 2) * (bh + 16);
+    if (by + bh < lmY + lmH - wallT - 12) {
+      usableBoxes.push({ x: bx, y: by, w: bw, h: bh, name: it.name, mb: it.mb });
+    }
+  });
+
+  layout2d = {
+    lm: { x: lmX, y: lmY, w: lmW, h: lmH },
+    pc1: { x: pc1X, y: pc1Y, w: pc1W, h: pc1H },
+    pc2Used: { x: pc2UsedX, y: pc2UsedY, w: pc2UsedW, h: pc2UsedH },
+    pc2Free: { x: pc2FreeX, y: pc2FreeY, w: pc2FreeW, h: pc2FreeH },
+    bridgeDoor: { x: lmX + lmW * 0.5 - 52, y: lmY + lmH - wallT, w: 104, h: wallT },
+    responseDoor: { x: lmX + lmW - wallT, y: lmY + lmH * 0.5 - 32, w: wallT, h: 64 },
+    usableBoxes
+  };
+}
+
+function clampCam2d() {
+  const maxX = Math.max(0, WORLD_W - canvas.width / cam2d.zoom);
+  const maxY = Math.max(0, WORLD_H - canvas.height / cam2d.zoom);
+  cam2d.x = Math.max(0, Math.min(maxX, cam2d.x));
+  cam2d.y = Math.max(0, Math.min(maxY, cam2d.y));
+  if (!is3DMode) $("zoomReadout").textContent = `2D Zoom: ${Math.round(cam2d.zoom * 100)}%`;
+}
+
+function isFreeInLm2d(cx, cy) {
+  const pad = 24, b = layout2d.lm;
+  if (cx - agent2d.r < b.x + pad || cx + agent2d.r > b.x + b.w - pad || cy - agent2d.r < b.y + pad + 18 || cy + agent2d.r > b.y + b.h - pad) return false;
+  for (const ub of layout2d.usableBoxes) {
+    const nx = Math.max(ub.x, Math.min(cx, ub.x + ub.w));
+    const ny = Math.max(ub.y, Math.min(cy, ub.y + ub.h));
+    const dx = cx - nx, dy = cy - ny;
+    if (dx * dx + dy * dy < (agent2d.r + 5) * (agent2d.r + 5)) return false;
+  }
+  return true;
+}
+
+function update2d(dt) {
+  const panSpd = 560 * dt / cam2d.zoom;
+  if (keysDown.has("arrowleft") || keysDown.has("a")) cam2d.x -= panSpd;
+  if (keysDown.has("arrowright") || keysDown.has("d")) cam2d.x += panSpd;
+  if (keysDown.has("arrowup") || keysDown.has("w")) cam2d.y -= panSpd;
+  if (keysDown.has("arrowdown") || keysDown.has("s")) cam2d.y += panSpd;
+  clampCam2d();
+
+  agent2d.timer -= dt;
+  const b = layout2d.lm, dx = agent2d.tx - agent2d.x, dy = agent2d.ty - agent2d.y, dist = Math.hypot(dx, dy);
+  if (dist < 10 || agent2d.timer <= 0 || !isFreeInLm2d(agent2d.tx, agent2d.ty)) {
+    for (let i = 0; i < 80; i++) {
+      const rx = b.x + 36 + Math.random() * Math.max(20, b.w - 72);
+      const ry = b.y + 52 + Math.random() * Math.max(20, b.h - 88);
+      if (isFreeInLm2d(rx, ry)) { agent2d.tx = rx; agent2d.ty = ry; break; }
+    }
+    agent2d.timer = 2.0 + Math.random() * 2.0;
+  }
+  if (dist > 1) {
+    const spd = 75;
+    const nx = agent2d.x + (dx / dist) * spd * dt;
+    const ny = agent2d.y + (dy / dist) * spd * dt;
+    if (isFreeInLm2d(nx, agent2d.y)) agent2d.x = nx;
+    if (isFreeInLm2d(agent2d.x, ny)) agent2d.y = ny;
+  }
+  agent2d.trail.push({ x: agent2d.x, y: agent2d.y });
+  if (agent2d.trail.length > 25) agent2d.trail.shift();
+}
+
+function draw2D() {
+  ctx.save();
+  ctx.fillStyle = "#04070e";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.scale(cam2d.zoom, cam2d.zoom);
+  ctx.translate(-cam2d.x, -cam2d.y);
+
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.045)";
+  ctx.lineWidth = 1;
+  for (let gx = 0; gx <= WORLD_W; gx += 60) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, WORLD_H); ctx.stroke(); }
+  for (let gy = 0; gy <= WORLD_H; gy += 60) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(WORLD_W, gy); ctx.stroke(); }
+
+  const { lm, pc1, pc2Used, pc2Free, bridgeDoor, responseDoor, usableBoxes } = layout2d;
+  const wallT = 18;
+
+  ctx.strokeStyle = "#a78bfa"; ctx.lineWidth = 2.5;
+  ctx.strokeRect(lm.x, lm.y, lm.w, lm.h);
+  ctx.fillStyle = "#ddd6fe"; ctx.font = "700 13px system-ui, sans-serif";
+  ctx.fillText(`LM BOX • ${metrics.lmBoxGb.toFixed(2)} GB`, lm.x + 16, lm.y + 26);
+
+  const ports = (latestBoxData.ports && latestBoxData.ports.length) ? latestBoxData.ports.slice(0, 6) : [{ label: "Link Port", site: "web" }];
+  ports.forEach((p, i) => {
+    const py = lm.y + 52 + i * 38;
+    if (py < lm.y + lm.h - 28) {
+      ctx.strokeStyle = "#34d399"; ctx.lineWidth = 2;
+      ctx.strokeRect(lm.x - wallT * 0.5, py - 8, wallT, 16);
+      ctx.fillStyle = "#6ee7b7"; ctx.font = "11px system-ui, sans-serif";
+      ctx.fillText(`← ${(p.label || p.site || "port").slice(0, 18)}`, lm.x - 140, py + 4);
+    }
+  });
+
+  ctx.fillStyle = "#04070e"; ctx.fillRect(responseDoor.x, responseDoor.y, responseDoor.w, responseDoor.h);
+  ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2.5;
+  ctx.strokeRect(responseDoor.x, responseDoor.y, responseDoor.w, responseDoor.h);
+  ctx.fillStyle = "#7dd3fc"; ctx.font = "700 11px system-ui, sans-serif";
+  ctx.fillText("RESPONSE DOOR →", lm.x + lm.w + 14, responseDoor.y + responseDoor.h * 0.5 + 4);
+
+  ctx.fillStyle = "#04070e"; ctx.fillRect(bridgeDoor.x, bridgeDoor.y, bridgeDoor.w, bridgeDoor.h);
+  ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 2.5;
+  ctx.strokeRect(bridgeDoor.x, bridgeDoor.y, bridgeDoor.w, bridgeDoor.h);
+  ctx.fillStyle = "#fcd34d"; ctx.font = "700 10.5px system-ui, sans-serif";
+  ctx.fillText("MSG BRIDGE DOOR", bridgeDoor.x + 4, bridgeDoor.y + bridgeDoor.h + 15);
+
+  const startX = bridgeDoor.x + bridgeDoor.w * 0.5, startY = bridgeDoor.y + bridgeDoor.h;
+  const endX = pc2Used.x + pc2Used.w * 0.5, endY = pc2Used.y;
+  ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 3; ctx.setLineDash([8, 6]);
+  ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.stroke(); ctx.setLineDash([]);
+
+  for (const pkt of bridgePackets) {
+    const t = pkt.dir === "tx" ? pkt.progress : (1 - pkt.progress);
+    ctx.fillStyle = pkt.dir === "tx" ? "#fbbf24" : "#34d399";
+    ctx.beginPath(); ctx.arc(startX + (endX - startX) * t, startY + (endY - startY) * t, 6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  for (const ub of usableBoxes) {
+    ctx.strokeStyle = "#2dd4bf"; ctx.lineWidth = 1.8;
+    ctx.strokeRect(ub.x, ub.y, ub.w, ub.h);
+    ctx.fillStyle = "#99f6e4"; ctx.font = "700 11px system-ui, sans-serif";
+    ctx.fillText(ub.name.slice(0, 18), ub.x + 8, ub.y + 17);
+    ctx.fillStyle = "#cbd5e1"; ctx.font = "10px system-ui, sans-serif";
+    ctx.fillText(`${Math.round(ub.mb)} MB`, ub.x + 8, ub.y + 31);
+  }
+
+  ctx.fillStyle = "#fbbf24"; ctx.strokeStyle = "#fef08a"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(agent2d.x, agent2d.y, agent2d.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#fef08a"; ctx.font = "700 11px system-ui, sans-serif"; ctx.textAlign = "center";
+  ctx.fillText("Le GPT", agent2d.x, agent2d.y - agent2d.r - 6); ctx.textAlign = "left";
+
+  ctx.strokeStyle = "#60a5fa"; ctx.lineWidth = 2.5;
+  ctx.strokeRect(pc1.x, pc1.y, pc1.w, pc1.h);
+  ctx.fillStyle = "#bfdbfe"; ctx.font = "700 12px system-ui, sans-serif";
+  ctx.fillText(`PC #1 USED • ${metrics.pcOnlyUsedGb.toFixed(2)} GB`, pc1.x + 12, pc1.y + 24);
+
+  ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 2.5;
+  ctx.strokeRect(pc2Used.x, pc2Used.y, pc2Used.w, pc2Used.h);
+  ctx.fillStyle = "#fde68a"; ctx.font = "700 12px system-ui, sans-serif";
+  ctx.fillText(`${pc2State.name || "PC #2"} USED`, pc2Used.x + 12, pc2Used.y + 22);
+  ctx.fillStyle = "#cbd5e1"; ctx.font = "11px system-ui, sans-serif";
+  ctx.fillText(`${(Number(pc2State.usedGb) || 4.0).toFixed(2)} GB`, pc2Used.x + 12, pc2Used.y + 40);
+
+  ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2.5;
+  ctx.strokeRect(pc2Free.x, pc2Free.y, pc2Free.w, pc2Free.h);
+  ctx.fillStyle = "#bae6fd"; ctx.font = "700 12px system-ui, sans-serif";
+  ctx.fillText(`PC #2 FREE RAM • ${(Number(pc2State.freeGb) || 12.0).toFixed(2)} GB`, pc2Free.x + 14, pc2Free.y + 24);
+  ctx.fillStyle = "#94a3b8"; ctx.font = "11px system-ui, sans-serif";
+  ctx.fillText("No LM on PC #2 • Msg-only target", pc2Free.x + 14, pc2Free.y + 44);
+  ctx.restore();
+}
+
+// ---- 3D Three.js ----
+let threeReady = false, scene, camera, renderer;
+let lmGroup, pcGroup, pc2UsedGroup, pc2FreeGroup, agentMesh;
+let responseDoorGroup, responsePulseMesh, bridgeDoorGroup;
+let portNodesGroup, lmUsableGroup, packets3dGroup, lmUsableColliders = [];
+let camTarget = new THREE.Vector3(1.5, 0.8, 1.0), yaw = -0.35, pitch = 0.56, radius = 28;
+
+function updateCameraPos() {
+  if (!camera) return;
+  const horiz = radius * Math.cos(pitch);
+  camera.position.set(camTarget.x + horiz * Math.sin(yaw), Math.max(1.8, camTarget.y + radius * Math.sin(pitch)), camTarget.z + horiz * Math.cos(yaw));
+  camera.lookAt(camTarget);
+}
+function resetCamera() { camTarget.set(1.5, 0.8, 1.0); yaw = -0.35; pitch = 0.56; radius = 28; updateCameraPos(); }
+
+function createOutlineBox(width, height, depth, colorHex) {
+  const group = new THREE.Group();
+  const wireframe = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(width, height, depth)), new THREE.LineBasicMaterial({ color: colorHex }));
+  wireframe.position.y = height * 0.5;
+  group.add(wireframe);
+  return { group };
+}
+
+function apply3DScales() {
+  if (!threeReady) return;
+  const lmW = 8.4 * metrics.lmScale, lmH = 3.2 * Math.max(0.85, Math.min(1.5, metrics.lmScale * 0.9)), lmD = 7.2 * metrics.lmScale;
+  if (lmGroup) scene.remove(lmGroup);
+  lmGroup = createOutlineBox(lmW, lmH, lmD, 0xa78bfa).group;
+  lmGroup.position.set(-2.8, 0, -1.8);
+
+  portNodesGroup = new THREE.Group(); lmGroup.add(portNodesGroup);
+  responseDoorGroup = new THREE.Group(); lmGroup.add(responseDoorGroup);
+  bridgeDoorGroup = new THREE.Group(); lmGroup.add(bridgeDoorGroup);
+  lmUsableGroup = new THREE.Group(); lmGroup.add(lmUsableGroup);
+  scene.add(lmGroup);
+
+  const rawPorts = Array.isArray(latestBoxData.ports) && latestBoxData.ports.length ? latestBoxData.ports.slice(0, 8) : [{ site: "web.port", bad: false, active: false }];
+  rawPorts.forEach((p, idx) => {
+    const zPos = rawPorts.length === 1 ? 0 : ((idx / (rawPorts.length - 1)) - 0.5) * (lmD * 0.72);
+    const col = p.bad ? 0xf87171 : (p.active ? 0x38bdf8 : 0x34d399);
+    const f = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.45, 1.15, 1.15)), new THREE.LineBasicMaterial({ color: col }));
+    f.position.set(-lmW * 0.5, 0.85, zPos); portNodesGroup.add(f);
+  });
+
+  const dFrame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.5, 1.8, 1.6)), new THREE.LineBasicMaterial({ color: 0x38bdf8 }));
+  dFrame.position.set(lmW * 0.5, 1.0, 0); responseDoorGroup.add(dFrame);
+  responsePulseMesh = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.32), new THREE.MeshBasicMaterial({ color: 0x7dd3fc, wireframe: true }));
+  responsePulseMesh.position.set(lmW * 0.5 + 0.7, 1.0, 0); responseDoorGroup.add(responsePulseMesh);
+
+  const bFrame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.6, 1.6, 0.5)), new THREE.LineBasicMaterial({ color: 0xf59e0b }));
+  bFrame.position.set(0, 0.9, lmD * 0.5); bridgeDoorGroup.add(bFrame);
+
+  if (pcGroup) scene.remove(pcGroup);
+  const pcW = 5.4 * metrics.pcScale, pcH = 2.6 * Math.max(0.75, Math.min(1.45, metrics.pcScale * 0.92)), pcD = 5.4 * metrics.pcScale;
+  pcGroup = createOutlineBox(pcW, pcH, pcD, 0x60a5fa).group;
+  pcGroup.position.set(lmGroup.position.x + 2.2 + lmW * 0.5 + pcW * 0.5, 0, lmGroup.position.z);
+  scene.add(pcGroup);
+
+  if (pc2UsedGroup) scene.remove(pc2UsedGroup);
+  if (pc2FreeGroup) scene.remove(pc2FreeGroup);
+  const usedW = 5.4 * metrics.pc2UsedScale, usedH = 2.6 * Math.max(0.75, Math.min(1.45, metrics.pc2UsedScale * 0.92)), usedD = 5.4 * metrics.pc2UsedScale;
+  const freeW = 7.6 * metrics.pc2FreeScale, freeH = 3.0 * Math.max(0.80, Math.min(1.50, metrics.pc2FreeScale * 0.92)), freeD = 6.6 * metrics.pc2FreeScale;
+  const pc2Z = lmGroup.position.z + lmD * 0.5 + 3.4 + Math.max(usedD, freeD) * 0.5;
+  const gapX = 1.4 + usedW * 0.5 + freeW * 0.5;
+  const shiftX = lmGroup.position.x - gapX * 0.35;
+
+  pc2UsedGroup = createOutlineBox(usedW, usedH, usedD, 0xf59e0b).group;
+  pc2UsedGroup.position.set(shiftX - gapX * 0.5, 0, pc2Z);
+  scene.add(pc2UsedGroup);
+
+  pc2FreeGroup = createOutlineBox(freeW, freeH, freeD, 0x38bdf8).group;
+  pc2FreeGroup.position.set(shiftX + gapX * 0.5, 0, pc2Z);
+  scene.add(pc2FreeGroup);
+
+  bridgeDoorGroup.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0.7, lmD * 0.5),
+      new THREE.Vector3(pc2UsedGroup.position.x - lmGroup.position.x, 0.7, pc2Z - usedD * 0.5 - lmGroup.position.z)
+    ]),
+    new THREE.LineBasicMaterial({ color: 0xf59e0b })
+  ));
+
+  lmUsableColliders = [];
+  const items = metrics.lmUsableItems;
+  if (items.length) {
+    const cols = Math.min(3, items.length), rows = Math.ceil(items.length / cols);
+    items.forEach((item, idx) => {
+      const c = idx % cols, r = Math.floor(idx / cols);
+      const sizeFactor = Math.max(0.65, Math.min(2.4, 0.55 + Math.sqrt(item.share) * 3.1));
+      const bw = Math.min(lmW * 0.26, 0.95 * sizeFactor), bd = Math.min(lmD * 0.26, 0.95 * sizeFactor), bh = Math.min(2.2, 0.55 + item.share * 3.5);
+      const px = -lmW * 0.34 + ((lmW * 0.68) / cols) * (c + 0.5);
+      const pz = -lmD * 0.34 + ((lmD * 0.68) / rows) * (r + 0.5);
+      const built = createOutlineBox(bw, bh, bd, 0x2dd4bf);
+      built.group.position.set(px, 0, pz);
+      lmUsableGroup.add(built.group);
+      lmUsableColliders.push({ x: px, z: pz, halfW: bw * 0.5 + 0.55, halfD: bd * 0.5 + 0.55 });
+    });
+  }
+}
+
+function initThree() {
+  if (threeReady || !window.THREE) return;
+  scene = new THREE.Scene(); scene.background = new THREE.Color(0x04070e);
+  const w = threeHost.clientWidth || 960, h = threeHost.clientHeight || 550;
+  camera = new THREE.PerspectiveCamera(48, w / h, 0.1, 200);
+  renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(w, h);
+  threeHost.innerHTML = ""; threeHost.appendChild(renderer.domElement);
+  scene.add(new THREE.GridHelper(60, 60, 0x243656, 0x0d1628));
+  packets3dGroup = new THREE.Group(); scene.add(packets3dGroup);
+  agentMesh = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.SphereGeometry(0.46, 16, 16)), new THREE.LineBasicMaterial({ color: 0xfbbf24 }));
+  agentMesh.position.set(-2.8, 0.55, -1.8); scene.add(agentMesh);
+
+  apply3DScales(); resetCamera();
+
+  let dragging = false, button = 0, lx = 0, ly = 0;
+  renderer.domElement.addEventListener("contextmenu", e => e.preventDefault());
+  renderer.domElement.addEventListener("pointerdown", e => { dragging = true; button = e.button; lx = e.clientX; ly = e.clientY; });
+  window.addEventListener("pointerup", () => { dragging = false; });
+  window.addEventListener("pointermove", e => {
+    if (!dragging || !is3DMode) return;
+    const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+    if (button === 2 || e.shiftKey) { camTarget.x -= dx * 0.025; camTarget.z += dy * 0.025; }
+    else { yaw -= dx * 0.0075; pitch = Math.max(0.14, Math.min(1.32, pitch + dy * 0.0075)); }
+    updateCameraPos();
+  });
+  renderer.domElement.addEventListener("wheel", e => {
+    if (!is3DMode) return; e.preventDefault();
+    radius = Math.max(7, Math.min(56, radius + (e.deltaY > 0 ? 1.8 : -1.8))); updateCameraPos();
+  }, { passive: false });
+  window.addEventListener("resize", () => {
+    if (!threeReady || !renderer || !camera) return;
+    const nw = threeHost.clientWidth || 960, nh = threeHost.clientHeight || 550;
+    camera.aspect = nw / nh; camera.updateProjectionMatrix(); renderer.setSize(nw, nh);
+  });
+  threeReady = true;
+}
+
+function updateThree(dt, now) {
+  if (!threeReady) return;
+  const panStep = 14 * dt; let moved = false;
+  if (keysDown.has("arrowleft") || keysDown.has("a")) { camTarget.x -= panStep; moved = true; }
+  if (keysDown.has("arrowright") || keysDown.has("d")) { camTarget.x += panStep; moved = true; }
+  if (keysDown.has("arrowup") || keysDown.has("w")) { camTarget.z -= panStep; moved = true; }
+  if (keysDown.has("arrowdown") || keysDown.has("s")) { camTarget.z += panStep; moved = true; }
+  if (moved) updateCameraPos();
+
+  const lmW = 8.4 * metrics.lmScale, lmD = 7.2 * metrics.lmScale;
+  const cx = lmGroup ? lmGroup.position.x : -2.8, cz = lmGroup ? lmGroup.position.z : -1.8;
+  let px = Math.sin(now * 0.00095) * (lmW * 0.36), pz = Math.cos(now * 0.00075) * (lmD * 0.36);
+  for (const box of lmUsableColliders) {
+    const dx = px - box.x, dz = pz - box.z;
+    if (Math.abs(dx) < box.halfW && Math.abs(dz) < box.halfD) {
+      if (box.halfW - Math.abs(dx) < box.halfD - Math.abs(dz)) px = box.x + (dx >= 0 ? box.halfW : -box.halfW);
+      else pz = box.z + (dz >= 0 ? box.halfD : -box.halfD);
+    }
+  }
+  agentMesh.position.set(cx + px, 0.55, cz + pz); agentMesh.rotation.y += dt * 1.4;
+  if (responsePulseMesh) {
+    responsePulseMesh.position.x = lmW * 0.5 + 0.25 + ((now * 0.0012) % 1) * 1.15;
+    responsePulseMesh.rotation.y += dt * 2.5;
+  }
+
+  while (packets3dGroup.children.length > 0) packets3dGroup.remove(packets3dGroup.children[0]);
+  if (pc2UsedGroup && lmGroup) {
+    const startX = lmGroup.position.x, startZ = lmGroup.position.z + lmD * 0.5;
+    const endX = pc2UsedGroup.position.x, endZ = pc2UsedGroup.position.z - (5.4 * metrics.pc2UsedScale) * 0.5;
+    for (const pkt of bridgePackets) {
+      const t = pkt.dir === "tx" ? pkt.progress : (1 - pkt.progress);
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), new THREE.MeshBasicMaterial({ color: pkt.dir === "tx" ? 0xfbbf24 : 0x34d399, wireframe: true }));
+      m.position.set(startX + (endX - startX) * t, 0.7, startZ + (endZ - startZ) * t);
+      packets3dGroup.add(m);
+    }
+  }
+  renderer.render(scene, camera);
+}
+
+// ---- Supabase & PC #2 Controls ----
 async function api(path, opt = {}, auth = true, retry = true) {
   const h = { apikey: CFG.key, "Content-Type": "application/json", ...(opt.headers || {}) };
   if (auth) { await ensure(); h.Authorization = "Bearer " + S.access; }
@@ -88,16 +598,21 @@ async function pc2Api(payload) {
 
 function renderPc2(pc2, extraReply) {
   if (!pc2) return;
+  pc2State = { ...pc2State, ...pc2 };
   if (pc2.ip && !$("pc2_ip").value) $("pc2_ip").value = pc2.ip;
+  if (pc2.port && !$("pc2_port").value) $("pc2_port").value = String(pc2.port);
   if (pc2.name && !$("pc2_name").value) $("pc2_name").value = pc2.name;
   const parts = [];
   if (extraReply) parts.push(extraReply);
   if (pc2.configured) {
-    parts.push(`${pc2.name || "PC #2"} (${pc2.ip}): ${pc2.online ? "ONLINE" : "OFFLINE"}${pc2.error ? " - " + pc2.error : ""}`);
+    parts.push(`${pc2.name || "PC #2"} (${pc2.ip}:${pc2.port || 5056}): ${pc2.online ? "ONLINE" : "OFFLINE"}${pc2.error ? " - " + pc2.error : ""}`);
   } else {
     parts.push("PC #2 is not configured yet.");
   }
   $("pc2_out").textContent = parts.join(" | ");
+  computeVisualMetrics(latestBoxData);
+  recomputeLayout2d();
+  if (threeReady) apply3DScales();
 }
 
 function show(on) { $("login").classList.toggle("hide", on); $("app").classList.toggle("hide", !on); }
@@ -108,6 +623,7 @@ async function loadControl() {
 const FIELDS = [["state", "State"], ["page", "Page / screen"], ["next", "Next move"], ["say", "LLM says"], ["result", "Result"], ["stats", "Steps / tokens"], ["eff", "Efficiency"], ["report", "Report"], ["links", "Saved links"], ["session", "Session"], ["export", "Export code"]];
 function render(row) {
   const d = (row && row.data) || {}, age = row ? (Date.now() - new Date(row.updated_at).getTime()) / 1000 : 1e9, on = age < 25;
+  latestBoxData = d;
   $("dot").classList.toggle("on", on); $("age").textContent = row ? (on ? "PC online" : "PC quiet for " + (age > 3600 ? Math.round(age / 3600) + " h" : Math.round(age / 60) + " min")) : "no PC yet";
   const st = $("st"); st.textContent = "";
   for (const [k, label] of FIELDS) { if (d[k] === undefined || d[k] === "") continue; const a = document.createElement("dt"), b = document.createElement("dd"); a.textContent = label; b.textContent = String(d[k]).slice(0, 1500); st.append(a, b); }
@@ -115,6 +631,9 @@ function render(row) {
   $("log").textContent = (d.log || []).slice(-12).join("\n");
   $("apr").classList.toggle("ask", /approv|wait|confirm/i.test(String(d.state || "") + " " + String(d.say || "")));
   if (d.box && d.box.pc2) renderPc2(d.box.pc2);
+  computeVisualMetrics(d);
+  recomputeLayout2d();
+  if (threeReady) apply3DScales();
 }
 async function poll() {
   if (!S || busy) return;
@@ -145,10 +664,12 @@ $("pc2_add").onclick = () => act(async () => {
     name: $("pc2_name").value.trim() || "PC #2"
   });
   $("pc2_token").value = "";
+  spawnBridgePacket("tx");
   renderPc2(res.pc2, res.reply);
 });
 $("pc2_info").onclick = () => act(async () => {
   const res = await pc2Api({ op: "info" });
+  spawnBridgePacket("rx");
   renderPc2(res.pc2, res.reply);
 });
 const sendPc2Msg = () => {
@@ -157,17 +678,69 @@ const sendPc2Msg = () => {
   act(async () => {
     const res = await pc2Api({ op: "msg", text: txt });
     $("pc2_msg").value = "";
+    spawnBridgePacket("tx");
     renderPc2(res.pc2, res.reply);
   });
 };
 $("pc2_send").onclick = sendPc2Msg;
 $("pc2_msg").onkeydown = e => { if (e.key === "Enter") sendPc2Msg(); };
 
-async function start() { show(true); await loadControl().catch(() => {}); poll(); }
+$("mode3dBtn").onclick = () => {
+  is3DMode = true;
+  $("mode3dBtn").classList.add("active"); $("mode2dBtn").classList.remove("active");
+  threeHost.style.display = "block"; canvas.style.display = "none";
+  initThree(); $("zoomReadout").textContent = "3D Ready";
+  $("viewHint").textContent = "3D Sim: Drag to orbit • Wheel to zoom • Right-drag or WASD to pan";
+};
+$("mode2dBtn").onclick = () => {
+  is3DMode = false;
+  $("mode2dBtn").classList.add("active"); $("mode3dBtn").classList.remove("active");
+  threeHost.style.display = "none"; canvas.style.display = "block";
+  cam2d.zoom = 1.0; cam2d.x = Math.max(0, layout2d.lm.x + layout2d.lm.w * 0.5 - canvas.width * 0.48);
+  cam2d.y = Math.max(0, layout2d.lm.y + layout2d.lm.h * 0.5 - canvas.height * 0.36);
+  clampCam2d();
+  $("viewHint").textContent = "2D Space: Drag to scroll/pan • Wheel to zoom • WASD/Arrows to pan";
+};
+$("resetCamBtn").onclick = () => {
+  if (is3DMode) resetCamera();
+  else { cam2d.zoom = 1.0; cam2d.x = Math.max(0, layout2d.lm.x + layout2d.lm.w * 0.5 - canvas.width * 0.48); cam2d.y = Math.max(0, layout2d.lm.y + layout2d.lm.h * 0.5 - canvas.height * 0.36); clampCam2d(); }
+};
+
+canvas.addEventListener("pointerdown", e => { cam2d.dragging = true; cam2d.lastX = e.clientX; cam2d.lastY = e.clientY; });
+window.addEventListener("pointerup", () => { cam2d.dragging = false; });
+window.addEventListener("pointermove", e => {
+  if (!cam2d.dragging || is3DMode) return;
+  const dx = (e.clientX - cam2d.lastX) / cam2d.zoom, dy = (e.clientY - cam2d.lastY) / cam2d.zoom;
+  cam2d.lastX = e.clientX; cam2d.lastY = e.clientY;
+  cam2d.x -= dx; cam2d.y -= dy; clampCam2d();
+});
+canvas.addEventListener("wheel", e => {
+  if (is3DMode) return; e.preventDefault();
+  cam2d.zoom = Math.max(0.5, Math.min(2.2, cam2d.zoom * (e.deltaY > 0 ? 0.9 : 1.1)));
+  clampCam2d();
+}, { passive: false });
+
+window.addEventListener("keydown", e => keysDown.add(e.key.toLowerCase()));
+window.addEventListener("keyup", e => keysDown.delete(e.key.toLowerCase()));
+
+let lastNow = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastNow) / 1000);
+  lastNow = now;
+  updatePackets(dt);
+  if (is3DMode) updateThree(dt, now);
+  else { update2d(dt); draw2D(); }
+  requestAnimationFrame(frame);
+}
+
+async function start() { show(true); initThree(); await loadControl().catch(() => {}); poll(); }
 (function init() {
   if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(CFG.url) || CFG.key.startsWith("YOUR_")) { show(false); $("login").classList.add("hide"); say("Edit CFG at the top of the script: your Supabase project URL and PUBLIC anon key.", "err0"); return; }
   if (roleOf(CFG.key) === "service_role" || CFG.key.startsWith("sb_secret_")) { say("That is a SECRET key. Remove it from this page now and use the public anon/publishable key.", "err0"); return; }
+  computeVisualMetrics(latestBoxData);
+  recomputeLayout2d();
   if (S) start().catch(logout); else show(false);
   setInterval(() => document.hidden || poll(), 2500);
+  requestAnimationFrame(frame);
 })();
 </script></body></html>
