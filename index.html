@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://*.supabase.co http://localhost:5055 http://127.0.0.1:5055; base-uri 'none'; form-action 'none'">
 <title>Le GPT control</title>
 <style>
 :root{--bg:#0b0f17;--card:#121826;--line:#26314a;--txt:#d8e0f0;--dim:#7c89a8;--acc:#5eead4;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171}
@@ -15,6 +15,7 @@ input,select{width:100%;margin-bottom:8px}button{cursor:pointer}button:hover{bor
 .row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1;min-width:70px}.go{background:#12351f;border-color:#256b3d}.stop{background:#3a1717;border-color:#7a2b2b}.yes{background:#12351f}.no{background:#3a1717}
 .ask{outline:2px solid var(--warn)}dl{margin:0;display:grid;grid-template-columns:110px 1fr;gap:6px 10px}dt{color:var(--dim)}dd{margin:0;white-space:pre-wrap;word-break:break-word}
 pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px ui-monospace,monospace;color:#9fb0d8}.err{color:var(--bad);min-height:1.2em;margin-top:6px}.hide{display:none}.pill{padding:2px 10px;border-radius:99px;background:#1c2640}
+.sub{color:var(--dim);font-size:13px;margin:4px 0 0;white-space:pre-wrap;word-break:break-word}
 </style></head><body><main>
 <section id="login" class="card hide"><h2>Sign in</h2>
  <form id="lf"><input id="em" type="email" placeholder="email" autocomplete="username" required><input id="pw" type="password" placeholder="password" autocomplete="current-password" required><button class="go" style="width:100%">Sign in</button></form></section>
@@ -25,6 +26,23 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px ui-monospace,m
  <div class="row"><button class="go" data-cmd="GO">GO</button><button data-cmd="PAUSE">PAUSE</button><button data-cmd="RESUME">RESUME</button><button class="stop" data-cmd="STOP">STOP</button></div></section>
 <section class="card" id="apr"><h2>Approval</h2><div class="row"><button class="yes" id="yes">YES</button><button class="no" id="no">NO</button></div></section>
 <section class="card"><h2>Talk (or /help)</h2><div class="row"><input id="talk" placeholder="message or /command" style="flex:4"><button id="send" class="go">Send</button></div></section>
+<section class="card"><h2>PC #2 (Helper PC)</h2>
+ <div class="row">
+  <input id="pc2_ip" placeholder="IP (e.g. 10.10.0.2)" style="flex:2">
+  <input id="pc2_port" placeholder="Port (5056)" style="flex:1">
+  <input id="pc2_name" placeholder="Name (PC #2)" style="flex:2">
+ </div>
+ <input id="pc2_token" type="password" placeholder="Helper PC token">
+ <div class="row">
+  <button id="pc2_add" class="go">Save & Connect</button>
+  <button id="pc2_info">Status</button>
+ </div>
+ <div class="row" style="margin-top:8px">
+  <input id="pc2_msg" placeholder="Message to send to PC #2" style="flex:4">
+  <button id="pc2_send">Send Msg</button>
+ </div>
+ <div id="pc2_out" class="sub">No PC #2 status yet.</div>
+</section>
 <section class="card"><h2>Status</h2><dl id="st"></dl></section>
 <section class="card"><h2>Log</h2><pre id="log"></pre></section>
 <div class="err" id="err"></div></div>
@@ -32,10 +50,10 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px ui-monospace,m
 </main>
 <script>
 "use strict";
-const CFG = { url: "https://laektajfojnzcnchddiy.supabase.co", key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhZWt0YWpmb2puemNuY2hkZGl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzOTMwMDAsImV4cCI6MjExMDk2OTAwMH0.l2TgPsp_LGM7CnhPg2jNJly3ic5TWRVGWO4tcBdSH60" };   // <- the only two things to edit
+const CFG = { url: "https://laektajfojnzcnchddiy.supabase.co", key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhZWt0YWpmb2puemNuY2hkZGl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzOTMwMDAsImV4cCI6MjExMDk2OTAwMH0.l2TgPsp_LGM7CnhPg2jNJly3ic5TWRVGWO4tcBdSH60", boxUrl: "http://127.0.0.1:5055" };
 const $ = id => document.getElementById(id);
 const roleOf = k => { try { return JSON.parse(atob(k.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).role; } catch (e) { return ""; } };
-let S = JSON.parse(sessionStorage.getItem("legpt") || "null"), busy = false;         // session lives in this tab only
+let S = JSON.parse(sessionStorage.getItem("legpt") || "null"), busy = false;
 const say = (t, id) => { $(id || "err").textContent = t || ""; };
 
 async function api(path, opt = {}, auth = true, retry = true) {
@@ -56,6 +74,32 @@ async function ensure() {
 }
 const write = fields => api("/rest/v1/control?on_conflict=user_id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: { user_id: S.uid, ...fields } });
 
+async function pc2Api(payload) {
+  const r = await fetch(CFG.boxUrl + "/api/pc2", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    cache: "no-store"
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.ok === false) throw new Error(j.error || ("HTTP " + r.status));
+  return j;
+}
+
+function renderPc2(pc2, extraReply) {
+  if (!pc2) return;
+  if (pc2.ip && !$("pc2_ip").value) $("pc2_ip").value = pc2.ip;
+  if (pc2.name && !$("pc2_name").value) $("pc2_name").value = pc2.name;
+  const parts = [];
+  if (extraReply) parts.push(extraReply);
+  if (pc2.configured) {
+    parts.push(`${pc2.name || "PC #2"} (${pc2.ip}): ${pc2.online ? "ONLINE" : "OFFLINE"}${pc2.error ? " - " + pc2.error : ""}`);
+  } else {
+    parts.push("PC #2 is not configured yet.");
+  }
+  $("pc2_out").textContent = parts.join(" | ");
+}
+
 function show(on) { $("login").classList.toggle("hide", on); $("app").classList.toggle("hide", !on); }
 async function loadControl() {
   const rows = await api(`/rest/v1/control?user_id=eq.${S.uid}&select=url,goal,mode`);
@@ -70,6 +114,7 @@ function render(row) {
   if (d.cpu !== undefined) { const a = document.createElement("dt"), b = document.createElement("dd"); a.textContent = "CPU / GPU / RAM"; b.textContent = [d.cpu, d.gpu, d.ram].map(x => (x === undefined || x === "" ? "-" : x + "%")).join("  /  "); st.append(a, b); }
   $("log").textContent = (d.log || []).slice(-12).join("\n");
   $("apr").classList.toggle("ask", /approv|wait|confirm/i.test(String(d.state || "") + " " + String(d.say || "")));
+  if (d.box && d.box.pc2) renderPc2(d.box.pc2);
 }
 async function poll() {
   if (!S || busy) return;
@@ -90,6 +135,33 @@ $("yes").onclick = () => act(() => write({ approval: "YES" })); $("no").onclick 
 $("mode").onchange = () => act(() => write({ mode: $("mode").value }));
 const send = () => { const t = $("talk").value.trim(); if (!t) return; $("talk").value = ""; act(() => write({ talk: t })); };
 $("send").onclick = send; $("talk").onkeydown = e => { if (e.key === "Enter") send(); };
+
+$("pc2_add").onclick = () => act(async () => {
+  const res = await pc2Api({
+    op: "add",
+    ip: $("pc2_ip").value.trim(),
+    port: Number($("pc2_port").value.trim() || 5056),
+    token: $("pc2_token").value,
+    name: $("pc2_name").value.trim() || "PC #2"
+  });
+  $("pc2_token").value = "";
+  renderPc2(res.pc2, res.reply);
+});
+$("pc2_info").onclick = () => act(async () => {
+  const res = await pc2Api({ op: "info" });
+  renderPc2(res.pc2, res.reply);
+});
+const sendPc2Msg = () => {
+  const txt = $("pc2_msg").value.trim();
+  if (!txt) return;
+  act(async () => {
+    const res = await pc2Api({ op: "msg", text: txt });
+    $("pc2_msg").value = "";
+    renderPc2(res.pc2, res.reply);
+  });
+};
+$("pc2_send").onclick = sendPc2Msg;
+$("pc2_msg").onkeydown = e => { if (e.key === "Enter") sendPc2Msg(); };
 
 async function start() { show(true); await loadControl().catch(() => {}); poll(); }
 (function init() {
